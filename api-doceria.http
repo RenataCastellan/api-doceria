@@ -1,0 +1,6 @@
+@api_doceria_HostAddress = http://localhost:5067
+
+GET {{api_doceria_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
