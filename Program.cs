@@ -23,6 +23,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<ProdutoService>();
 builder.Services.AddScoped<ClienteService>();
 builder.Services.AddScoped<PedidoService>();
+builder.Services.AddScoped<EnderecoService>();
 
 var app = builder.Build();
 
