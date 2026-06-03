@@ -24,6 +24,8 @@ builder.Services.AddScoped<ProdutoService>();
 builder.Services.AddScoped<ClienteService>();
 builder.Services.AddScoped<PedidoService>();
 builder.Services.AddScoped<EnderecoService>();
+builder.Services.AddScoped<PagamentoService>();
+builder.Services.AddScoped<CarrinhoService>();
 
 var app = builder.Build();
 
