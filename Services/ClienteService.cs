@@ -41,6 +41,10 @@ namespace api_doceria.Services
 
         public async Task<ClienteReadDto?> CreateAsync(ClienteCreateDto dto)
         {
+            // NF7.2 - senha com no mínimo 6 caracteres
+            if (dto.Senha.Length < 6)
+                throw new ArgumentException("A senha deve ter no mínimo 6 caracteres.");
+
             var emailExiste = await _context.Clientes.AnyAsync(c => c.Email == dto.Email);
             if (emailExiste) return null;
 
@@ -48,7 +52,7 @@ namespace api_doceria.Services
             {
                 Nome = dto.Nome,
                 Email = dto.Email,
-                Senha = dto.Senha
+                Senha = BCrypt.Net.BCrypt.HashPassword(dto.Senha)
             };
 
             _context.Clientes.Add(cliente);

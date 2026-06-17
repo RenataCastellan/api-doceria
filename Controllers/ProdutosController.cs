@@ -1,5 +1,6 @@
 ﻿using api_doceria.Dtos;
 using api_doceria.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace api_doceria.Controllers;
@@ -30,6 +31,7 @@ public class ProdutosController : ControllerBase
         return Ok(produto);
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] ProdutoCreateDto dto)
     {
@@ -37,6 +39,7 @@ public class ProdutosController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = produto.IdProduto }, produto);
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] ProdutoUpdateDto dto)
     {
@@ -45,6 +48,7 @@ public class ProdutosController : ControllerBase
         return NoContent();
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {

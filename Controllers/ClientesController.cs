@@ -35,11 +35,18 @@ namespace api_doceria.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] ClienteCreateDto dto)
         {
-            var cliente = await _service.CreateAsync(dto);
-            if (cliente == null)
-                return Conflict(new { mensagem = "E-mail já cadastrado no sistema." });
+            try
+            {
+                var cliente = await _service.CreateAsync(dto);
+                if (cliente == null)
+                    return Conflict(new { mensagem = "E-mail já cadastrado no sistema." });
 
-            return CreatedAtAction(nameof(GetById), new { id = cliente.IdCliente }, cliente);
+                return CreatedAtAction(nameof(GetById), new { id = cliente.IdCliente }, cliente);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { mensagem = ex.Message });
+            }
         }
     }
 }

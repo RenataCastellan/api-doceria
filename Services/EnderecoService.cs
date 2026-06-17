@@ -53,6 +53,15 @@ public class EnderecoService
 
     public async Task<EnderecoReadDto?> CreateAsync(EnderecoCreateDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.Rua) ||
+            string.IsNullOrWhiteSpace(dto.Numero) ||
+            string.IsNullOrWhiteSpace(dto.Bairro) ||
+            string.IsNullOrWhiteSpace(dto.Cidade) ||
+            string.IsNullOrWhiteSpace(dto.Estado))
+        {
+            throw new ArgumentException("Rua, número, bairro, cidade e estado são obrigatórios.");
+        }
+
         var clienteExiste = await _context.Clientes.AnyAsync(c => c.IdCliente == dto.IdCliente);
         if (!clienteExiste) return null;
 

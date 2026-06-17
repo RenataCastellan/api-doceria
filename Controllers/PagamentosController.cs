@@ -23,14 +23,20 @@ public class PagamentosController : ControllerBase
         return Ok(pagamentos);
     }
 
-    // POST api/pagamentos
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] PagamentoCreateDto dto)
     {
-        var pagamento = await _service.CreateAsync(dto);
-        if (pagamento == null)
-            return BadRequest(new { mensagem = "Pedido não encontrado." });
+        try
+        {
+            var pagamento = await _service.CreateAsync(dto);
+            if (pagamento == null)
+                return BadRequest(new { mensagem = "Pedido não encontrado." });
 
-        return Ok(pagamento);
+            return Ok(pagamento);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { mensagem = ex.Message });
+        }
     }
 }

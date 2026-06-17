@@ -29,10 +29,15 @@ public class PagamentoService
             }).ToListAsync();
     }
 
+    private static readonly string[] TiposValidos = { "PIX", "Cartão de Crédito", "Cartão de Débito", "Dinheiro" };
+
     public async Task<PagamentoReadDto?> CreateAsync(PagamentoCreateDto dto)
     {
-        var pedidoExiste = await _context.Pedidos.AnyAsync(p => p.IdPedido == dto.IdPedido);
-        if (!pedidoExiste) return null;
+        if (!TiposValidos.Contains(dto.Tipo))
+            throw new ArgumentException("Forma de pagamento inválida. Use: PIX, Cartão de Crédito, Cartão de Débito ou Dinheiro.");
+
+        var pedido = await _context.Pedidos.FindAsync(dto.IdPedido);
+        if (pedido == null) return null;
 
         var pagamento = new Pagamento
         {
@@ -43,6 +48,8 @@ public class PagamentoService
         };
 
         _context.Pagamentos.Add(pagamento);
+        pedido.Status = "Pago";
+
         await _context.SaveChangesAsync();
 
         return new PagamentoReadDto

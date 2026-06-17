@@ -36,11 +36,18 @@ public class EnderecosController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] EnderecoCreateDto dto)
     {
-        var endereco = await _service.CreateAsync(dto);
-        if (endereco == null)
-            return BadRequest(new { mensagem = "Cliente não encontrado." });
+        try
+        {
+            var endereco = await _service.CreateAsync(dto);
+            if (endereco == null)
+                return BadRequest(new { mensagem = "Cliente não encontrado." });
 
-        return CreatedAtAction(nameof(GetById), new { id = endereco.IdEndereco }, endereco);
+            return CreatedAtAction(nameof(GetById), new { id = endereco.IdEndereco }, endereco);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { mensagem = ex.Message });
+        }
     }
 
     // DELETE api/enderecos/5
