@@ -1,5 +1,6 @@
 ﻿using api_doceria.DataContexts;
 using api_doceria.Dtos;
+using api_doceria.Exceptions;
 using api_doceria.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -34,10 +35,14 @@ public class ProdutoService
         }).ToListAsync();
     }
 
-    public async Task<ProdutoReadDto?> GetByIdAsync(int id)
+    public async Task<ProdutoReadDto> GetByIdAsync(int id)
     {
         var produto = await _context.Produtos.FindAsync(id);
-        if (produto == null) return null;
+
+        if (produto == null)
+            throw new ErrorServiceException(
+                $"Produto #{id} não encontrado",
+                c => c.NotFound(new { mensagem = $"Produto #{id} não encontrado." }));
 
         return new ProdutoReadDto
         {
@@ -54,6 +59,12 @@ public class ProdutoService
 
     public async Task<ProdutoReadDto> CreateAsync(ProdutoCreateDto dto)
     {
+        var adminExiste = await _context.Administradores.AnyAsync(a => a.IdAdmin == dto.IdAdmin);
+        if (!adminExiste)
+            throw new ErrorServiceException(
+                $"Administrador #{dto.IdAdmin} não encontrado",
+                c => c.NotFound(new { mensagem = $"Administrador #{dto.IdAdmin} não encontrado." }));
+
         var produto = new Produto
         {
             Nome = dto.Nome,
@@ -69,23 +80,17 @@ public class ProdutoService
         _context.Produtos.Add(produto);
         await _context.SaveChangesAsync();
 
-        return new ProdutoReadDto
-        {
-            IdProduto = produto.IdProduto,
-            Nome = produto.Nome,
-            Descricao = produto.Descricao,
-            Preco = produto.Preco,
-            Imagem = produto.Imagem,
-            Categoria = produto.Categoria,
-            Estoque = produto.Estoque,
-            Ativo = produto.Ativo
-        };
+        return await GetByIdAsync(produto.IdProduto);
     }
 
-    public async Task<bool> UpdateAsync(int id, ProdutoUpdateDto dto)
+    public async Task<ProdutoReadDto> UpdateAsync(int id, ProdutoUpdateDto dto)
     {
         var produto = await _context.Produtos.FindAsync(id);
-        if (produto == null) return false;
+
+        if (produto == null)
+            throw new ErrorServiceException(
+                $"Produto #{id} não encontrado",
+                c => c.NotFound(new { mensagem = $"Produto #{id} não encontrado." }));
 
         produto.Nome = dto.Nome;
         produto.Descricao = dto.Descricao;
@@ -96,16 +101,19 @@ public class ProdutoService
         produto.Ativo = dto.Ativo;
 
         await _context.SaveChangesAsync();
-        return true;
+        return await GetByIdAsync(produto.IdProduto);
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task RemoveAsync(int id)
     {
         var produto = await _context.Produtos.FindAsync(id);
-        if (produto == null) return false;
+
+        if (produto == null)
+            throw new ErrorServiceException(
+                $"Produto #{id} não encontrado",
+                c => c.NotFound(new { mensagem = $"Produto #{id} não encontrado." }));
 
         _context.Produtos.Remove(produto);
         await _context.SaveChangesAsync();
-        return true;
     }
 }

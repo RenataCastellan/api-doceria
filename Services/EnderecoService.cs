@@ -1,5 +1,6 @@
 ﻿using api_doceria.DataContexts;
 using api_doceria.Dtos;
+using api_doceria.Exceptions;
 using api_doceria.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -32,10 +33,14 @@ public class EnderecoService
             }).ToListAsync();
     }
 
-    public async Task<EnderecoReadDto?> GetByIdAsync(int id)
+    public async Task<EnderecoReadDto> GetByIdAsync(int id)
     {
         var endereco = await _context.Enderecos.FindAsync(id);
-        if (endereco == null) return null;
+
+        if (endereco == null)
+            throw new ErrorServiceException(
+                $"Endereço #{id} não encontrado",
+                c => c.NotFound(new { mensagem = $"Endereço #{id} não encontrado." }));
 
         return new EnderecoReadDto
         {
@@ -51,19 +56,22 @@ public class EnderecoService
         };
     }
 
-    public async Task<EnderecoReadDto?> CreateAsync(EnderecoCreateDto dto)
+    public async Task<EnderecoReadDto> CreateAsync(EnderecoCreateDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Rua) ||
             string.IsNullOrWhiteSpace(dto.Numero) ||
             string.IsNullOrWhiteSpace(dto.Bairro) ||
             string.IsNullOrWhiteSpace(dto.Cidade) ||
             string.IsNullOrWhiteSpace(dto.Estado))
-        {
-            throw new ArgumentException("Rua, número, bairro, cidade e estado são obrigatórios.");
-        }
+            throw new ErrorServiceException(
+                "Campos obrigatórios não preenchidos",
+                c => c.BadRequest(new { mensagem = "Rua, número, bairro, cidade e estado são obrigatórios." }));
 
         var clienteExiste = await _context.Clientes.AnyAsync(c => c.IdCliente == dto.IdCliente);
-        if (!clienteExiste) return null;
+        if (!clienteExiste)
+            throw new ErrorServiceException(
+                $"Cliente #{dto.IdCliente} não encontrado",
+                c => c.NotFound(new { mensagem = $"Cliente #{dto.IdCliente} não encontrado." }));
 
         var endereco = new Endereco
         {
@@ -80,27 +88,19 @@ public class EnderecoService
         _context.Enderecos.Add(endereco);
         await _context.SaveChangesAsync();
 
-        return new EnderecoReadDto
-        {
-            IdEndereco = endereco.IdEndereco,
-            Rua = endereco.Rua,
-            Numero = endereco.Numero,
-            Complemento = endereco.Complemento,
-            Bairro = endereco.Bairro,
-            Cidade = endereco.Cidade,
-            Estado = endereco.Estado,
-            Cep = endereco.Cep,
-            IdCliente = endereco.IdCliente
-        };
+        return await GetByIdAsync(endereco.IdEndereco);
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task RemoveAsync(int id)
     {
         var endereco = await _context.Enderecos.FindAsync(id);
-        if (endereco == null) return false;
+
+        if (endereco == null)
+            throw new ErrorServiceException(
+                $"Endereço #{id} não encontrado",
+                c => c.NotFound(new { mensagem = $"Endereço #{id} não encontrado." }));
 
         _context.Enderecos.Remove(endereco);
         await _context.SaveChangesAsync();
-        return true;
     }
 }

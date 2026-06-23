@@ -1,4 +1,5 @@
 ﻿using api_doceria.Dtos;
+using api_doceria.Exceptions;
 using api_doceria.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,47 +16,71 @@ public class EnderecosController : ControllerBase
         _service = service;
     }
 
-    // GET api/enderecos/cliente/1
     [HttpGet("cliente/{idCliente}")]
     public async Task<IActionResult> GetByCliente(int idCliente)
     {
-        var enderecos = await _service.GetByClienteAsync(idCliente);
-        return Ok(enderecos);
+        try
+        {
+            var enderecos = await _service.GetByClienteAsync(idCliente);
+            return Ok(enderecos);
+        }
+        catch (Exception e)
+        {
+            return Problem(e.Message);
+        }
     }
 
-    // GET api/enderecos/5
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var endereco = await _service.GetByIdAsync(id);
-        if (endereco == null) return NotFound(new { mensagem = "Endereço não encontrado." });
-        return Ok(endereco);
+        try
+        {
+            var endereco = await _service.GetByIdAsync(id);
+            return Ok(endereco);
+        }
+        catch (ErrorServiceException e)
+        {
+            return e.ToActionResult(this);
+        }
+        catch (Exception e)
+        {
+            return Problem(e.Message);
+        }
     }
 
-    // POST api/enderecos
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] EnderecoCreateDto dto)
     {
         try
         {
             var endereco = await _service.CreateAsync(dto);
-            if (endereco == null)
-                return BadRequest(new { mensagem = "Cliente não encontrado." });
-
-            return CreatedAtAction(nameof(GetById), new { id = endereco.IdEndereco }, endereco);
+            return Created("", endereco);
         }
-        catch (ArgumentException ex)
+        catch (ErrorServiceException e)
         {
-            return BadRequest(new { mensagem = ex.Message });
+            return e.ToActionResult(this);
+        }
+        catch (Exception e)
+        {
+            return Problem(e.Message);
         }
     }
 
-    // DELETE api/enderecos/5
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var removido = await _service.DeleteAsync(id);
-        if (!removido) return NotFound(new { mensagem = "Endereço não encontrado." });
-        return NoContent();
+        try
+        {
+            await _service.RemoveAsync(id);
+            return NoContent();
+        }
+        catch (ErrorServiceException e)
+        {
+            return e.ToActionResult(this);
+        }
+        catch (Exception e)
+        {
+            return Problem(e.Message);
+        }
     }
 }

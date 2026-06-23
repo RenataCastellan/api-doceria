@@ -1,5 +1,6 @@
 ﻿using api_doceria.DataContexts;
 using api_doceria.Dtos;
+using api_doceria.Exceptions;
 using api_doceria.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,6 +9,8 @@ namespace api_doceria.Services;
 public class PagamentoService
 {
     private readonly AppDbContext _context;
+
+    private static readonly string[] TiposValidos = { "PIX", "Cartão de Crédito", "Cartão de Débito", "Dinheiro" };
 
     public PagamentoService(AppDbContext context)
     {
@@ -29,15 +32,18 @@ public class PagamentoService
             }).ToListAsync();
     }
 
-    private static readonly string[] TiposValidos = { "PIX", "Cartão de Crédito", "Cartão de Débito", "Dinheiro" };
-
-    public async Task<PagamentoReadDto?> CreateAsync(PagamentoCreateDto dto)
+    public async Task<PagamentoReadDto> CreateAsync(PagamentoCreateDto dto)
     {
         if (!TiposValidos.Contains(dto.Tipo))
-            throw new ArgumentException("Forma de pagamento inválida. Use: PIX, Cartão de Crédito, Cartão de Débito ou Dinheiro.");
+            throw new ErrorServiceException(
+                "Forma de pagamento inválida",
+                c => c.BadRequest(new { mensagem = "Forma de pagamento inválida. Use: PIX, Cartão de Crédito, Cartão de Débito ou Dinheiro." }));
 
         var pedido = await _context.Pedidos.FindAsync(dto.IdPedido);
-        if (pedido == null) return null;
+        if (pedido == null)
+            throw new ErrorServiceException(
+                $"Pedido #{dto.IdPedido} não encontrado",
+                c => c.NotFound(new { mensagem = $"Pedido #{dto.IdPedido} não encontrado." }));
 
         var pagamento = new Pagamento
         {
@@ -49,7 +55,6 @@ public class PagamentoService
 
         _context.Pagamentos.Add(pagamento);
         pedido.Status = "Pago";
-
         await _context.SaveChangesAsync();
 
         return new PagamentoReadDto

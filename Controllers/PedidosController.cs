@@ -1,52 +1,86 @@
 ﻿using api_doceria.Dtos;
+using api_doceria.Exceptions;
 using api_doceria.Services;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace api_doceria.Controllers
+namespace api_doceria.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class PedidosController : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class PedidosController : ControllerBase
+    private readonly PedidoService _service;
+
+    public PedidosController(PedidoService service)
     {
-        private readonly PedidoService _service;
+        _service = service;
+    }
 
-        public PedidosController(PedidoService service)
-        {
-            _service = service;
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> GetAll()
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        try
         {
             var pedidos = await _service.GetAllAsync();
             return Ok(pedidos);
         }
+        catch (Exception e)
+        {
+            return Problem(e.Message);
+        }
+    }
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(int id)
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        try
         {
             var pedido = await _service.GetByIdAsync(id);
-            if (pedido == null) return NotFound(new { mensagem = "Pedido não encontrado." });
             return Ok(pedido);
         }
+        catch (ErrorServiceException e)
+        {
+            return e.ToActionResult(this);
+        }
+        catch (Exception e)
+        {
+            return Problem(e.Message);
+        }
+    }
 
-        [HttpPost]
-        public async Task<IActionResult> Create([FromBody] PedidoCreateDto dto)
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] PedidoCreateDto dto)
+    {
+        try
         {
             var pedido = await _service.CreateAsync(dto);
-            if (pedido == null)
-                return BadRequest(new { mensagem = "Cliente, endereço ou produtos inválidos." });
-
-            return CreatedAtAction(nameof(GetById), new { id = pedido.IdPedido }, pedido);
+            return Created("", pedido);
         }
-
-        [HttpPatch("{id}/status")]
-        public async Task<IActionResult> AtualizarStatus(int id, [FromBody] string status)
+        catch (ErrorServiceException e)
         {
-            var atualizado = await _service.AtualizarStatusAsync(id, status);
-            if (!atualizado) return NotFound(new { mensagem = "Pedido não encontrado." });
+            return e.ToActionResult(this);
+        }
+        catch (Exception e)
+        {
+            return Problem(e.Message);
+        }
+    }
+
+    [HttpPatch("{id}/status")]
+    public async Task<IActionResult> AtualizarStatus(int id, [FromBody] string status)
+    {
+        try
+        {
+            await _service.AtualizarStatusAsync(id, status);
             return NoContent();
+        }
+        catch (ErrorServiceException e)
+        {
+            return e.ToActionResult(this);
+        }
+        catch (Exception e)
+        {
+            return Problem(e.Message);
         }
     }
 }

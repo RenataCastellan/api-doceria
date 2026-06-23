@@ -1,4 +1,5 @@
 ﻿using api_doceria.Dtos;
+using api_doceria.Exceptions;
 using api_doceria.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,12 +16,18 @@ public class PagamentosController : ControllerBase
         _service = service;
     }
 
-    // GET api/pagamentos/pedido/1
     [HttpGet("pedido/{idPedido}")]
     public async Task<IActionResult> GetByPedido(int idPedido)
     {
-        var pagamentos = await _service.GetByPedidoAsync(idPedido);
-        return Ok(pagamentos);
+        try
+        {
+            var pagamentos = await _service.GetByPedidoAsync(idPedido);
+            return Ok(pagamentos);
+        }
+        catch (Exception e)
+        {
+            return Problem(e.Message);
+        }
     }
 
     [HttpPost]
@@ -29,14 +36,15 @@ public class PagamentosController : ControllerBase
         try
         {
             var pagamento = await _service.CreateAsync(dto);
-            if (pagamento == null)
-                return BadRequest(new { mensagem = "Pedido não encontrado." });
-
             return Ok(pagamento);
         }
-        catch (ArgumentException ex)
+        catch (ErrorServiceException e)
         {
-            return BadRequest(new { mensagem = ex.Message });
+            return e.ToActionResult(this);
+        }
+        catch (Exception e)
+        {
+            return Problem(e.Message);
         }
     }
 }

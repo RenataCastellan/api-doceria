@@ -1,5 +1,6 @@
 ﻿using api_doceria.DataContexts;
 using api_doceria.Dtos;
+using api_doceria.Exceptions;
 using api_doceria.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,10 +24,14 @@ public class AdministradorService
         }).ToListAsync();
     }
 
-    public async Task<AdministradorReadDto?> GetByIdAsync(int id)
+    public async Task<AdministradorReadDto> GetByIdAsync(int id)
     {
         var admin = await _context.Administradores.FindAsync(id);
-        if (admin == null) return null;
+
+        if (admin == null)
+            throw new ErrorServiceException(
+                $"Administrador #{id} não encontrado",
+                c => c.NotFound(new { mensagem = $"Administrador #{id} não encontrado." }));
 
         return new AdministradorReadDto
         {
@@ -35,13 +40,18 @@ public class AdministradorService
         };
     }
 
-    public async Task<AdministradorReadDto?> CreateAsync(AdministradorCreateDto dto)
+    public async Task<AdministradorReadDto> CreateAsync(AdministradorCreateDto dto)
     {
         if (dto.Senha.Length < 6)
-            throw new ArgumentException("A senha deve ter no mínimo 6 caracteres.");
+            throw new ErrorServiceException(
+                "Senha muito curta",
+                c => c.BadRequest(new { mensagem = "A senha deve ter no mínimo 6 caracteres." }));
 
         var loginExiste = await _context.Administradores.AnyAsync(a => a.Login == dto.Login);
-        if (loginExiste) return null;
+        if (loginExiste)
+            throw new ErrorServiceException(
+                "Login já cadastrado",
+                c => c.Conflict(new { mensagem = "Login já cadastrado no sistema." }));
 
         var admin = new Administrador
         {
@@ -52,10 +62,6 @@ public class AdministradorService
         _context.Administradores.Add(admin);
         await _context.SaveChangesAsync();
 
-        return new AdministradorReadDto
-        {
-            IdAdmin = admin.IdAdmin,
-            Login = admin.Login
-        };
+        return await GetByIdAsync(admin.IdAdmin);
     }
 }

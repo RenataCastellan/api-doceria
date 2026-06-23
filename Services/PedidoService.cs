@@ -1,61 +1,34 @@
 ﻿using api_doceria.DataContexts;
 using api_doceria.Dtos;
+using api_doceria.Exceptions;
 using api_doceria.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace api_doceria.Services
+namespace api_doceria.Services;
+
+public class PedidoService
 {
-    public class PedidoService
+    private readonly AppDbContext _context;
+
+    public PedidoService(AppDbContext context)
     {
-        private readonly AppDbContext _context;
+        _context = context;
+    }
 
-        public PedidoService(AppDbContext context)
-        {
-            _context = context;
-        }
-
-        public async Task<List<PedidoReadDto>> GetAllAsync()
-        {
-            return await _context.Pedidos
-                .Include(p => p.Cliente)
-                .Include(p => p.Itens).ThenInclude(i => i.Produto)
-                .Select(p => new PedidoReadDto
-                {
-                    IdPedido = p.IdPedido,
-                    Data = p.Data,
-                    Status = p.Status,
-                    Total = p.Total,
-                    IdCliente = p.IdCliente,
-                    NomeCliente = p.Cliente!.Nome,
-                    Itens = p.Itens.Select(i => new ItemPedidoReadDto
-                    {
-                        IdItem = i.IdItem,
-                        NomeProduto = i.Produto!.Nome,
-                        Quantidade = i.Quantidade,
-                        PrecoUnitario = i.PrecoUnitario,
-                        Subtotal = i.Quantidade * i.PrecoUnitario
-                    }).ToList()
-                }).ToListAsync();
-        }
-
-        public async Task<PedidoReadDto?> GetByIdAsync(int id)
-        {
-            var pedido = await _context.Pedidos
-                .Include(p => p.Cliente)
-                .Include(p => p.Itens).ThenInclude(i => i.Produto)
-                .FirstOrDefaultAsync(p => p.IdPedido == id);
-
-            if (pedido == null) return null;
-
-            return new PedidoReadDto
+    public async Task<List<PedidoReadDto>> GetAllAsync()
+    {
+        return await _context.Pedidos
+            .Include(p => p.Cliente)
+            .Include(p => p.Itens).ThenInclude(i => i.Produto)
+            .Select(p => new PedidoReadDto
             {
-                IdPedido = pedido.IdPedido,
-                Data = pedido.Data,
-                Status = pedido.Status,
-                Total = pedido.Total,
-                IdCliente = pedido.IdCliente,
-                NomeCliente = pedido.Cliente!.Nome,
-                Itens = pedido.Itens.Select(i => new ItemPedidoReadDto
+                IdPedido = p.IdPedido,
+                Data = p.Data,
+                Status = p.Status,
+                Total = p.Total,
+                IdCliente = p.IdCliente,
+                NomeCliente = p.Cliente!.Nome,
+                Itens = p.Itens.Select(i => new ItemPedidoReadDto
                 {
                     IdItem = i.IdItem,
                     NomeProduto = i.Produto!.Nome,
@@ -63,53 +36,94 @@ namespace api_doceria.Services
                     PrecoUnitario = i.PrecoUnitario,
                     Subtotal = i.Quantidade * i.PrecoUnitario
                 }).ToList()
-            };
-        }
+            }).ToListAsync();
+    }
 
-        public async Task<PedidoReadDto?> CreateAsync(PedidoCreateDto dto)
+    public async Task<PedidoReadDto> GetByIdAsync(int id)
+    {
+        var pedido = await _context.Pedidos
+            .Include(p => p.Cliente)
+            .Include(p => p.Itens).ThenInclude(i => i.Produto)
+            .FirstOrDefaultAsync(p => p.IdPedido == id);
+
+        if (pedido == null)
+            throw new ErrorServiceException(
+                $"Pedido #{id} não encontrado",
+                c => c.NotFound(new { mensagem = $"Pedido #{id} não encontrado." }));
+
+        return new PedidoReadDto
         {
-            var cliente = await _context.Clientes.FindAsync(dto.IdCliente);
-            var endereco = await _context.Enderecos.FindAsync(dto.IdEndereco);
-            if (cliente == null || endereco == null) return null;
-
-            var pedido = new Pedido
+            IdPedido = pedido.IdPedido,
+            Data = pedido.Data,
+            Status = pedido.Status,
+            Total = pedido.Total,
+            IdCliente = pedido.IdCliente,
+            NomeCliente = pedido.Cliente!.Nome,
+            Itens = pedido.Itens.Select(i => new ItemPedidoReadDto
             {
-                IdCliente = dto.IdCliente,
-                IdEndereco = dto.IdEndereco,
-                Status = "Pendente"
-            };
+                IdItem = i.IdItem,
+                NomeProduto = i.Produto!.Nome,
+                Quantidade = i.Quantidade,
+                PrecoUnitario = i.PrecoUnitario,
+                Subtotal = i.Quantidade * i.PrecoUnitario
+            }).ToList()
+        };
+    }
 
-            decimal total = 0;
-            foreach (var itemDto in dto.Itens)
-            {
-                var produto = await _context.Produtos.FindAsync(itemDto.IdProduto);
-                if (produto == null || !produto.Ativo) continue;
+    public async Task<PedidoReadDto> CreateAsync(PedidoCreateDto dto)
+    {
+        var cliente = await _context.Clientes.FindAsync(dto.IdCliente);
+        if (cliente == null)
+            throw new ErrorServiceException(
+                $"Cliente #{dto.IdCliente} não encontrado",
+                c => c.NotFound(new { mensagem = $"Cliente #{dto.IdCliente} não encontrado." }));
 
-                var item = new ItemPedido
-                {
-                    IdProduto = itemDto.IdProduto,
-                    Quantidade = itemDto.Quantidade,
-                    PrecoUnitario = produto.Preco
-                };
-                pedido.Itens.Add(item);
-                total += item.Quantidade * item.PrecoUnitario;
-            }
+        var endereco = await _context.Enderecos.FindAsync(dto.IdEndereco);
+        if (endereco == null)
+            throw new ErrorServiceException(
+                $"Endereço #{dto.IdEndereco} não encontrado",
+                c => c.NotFound(new { mensagem = $"Endereço #{dto.IdEndereco} não encontrado." }));
 
-            pedido.Total = total;
-            _context.Pedidos.Add(pedido);
-            await _context.SaveChangesAsync();
-
-            return await GetByIdAsync(pedido.IdPedido);
-        }
-
-        public async Task<bool> AtualizarStatusAsync(int id, string status)
+        var pedido = new Pedido
         {
-            var pedido = await _context.Pedidos.FindAsync(id);
-            if (pedido == null) return false;
+            IdCliente = dto.IdCliente,
+            IdEndereco = dto.IdEndereco,
+            Status = "Pendente"
+        };
 
-            pedido.Status = status;
-            await _context.SaveChangesAsync();
-            return true;
+        decimal total = 0;
+        foreach (var itemDto in dto.Itens)
+        {
+            var produto = await _context.Produtos.FindAsync(itemDto.IdProduto);
+            if (produto == null || !produto.Ativo) continue;
+
+            var item = new ItemPedido
+            {
+                IdProduto = itemDto.IdProduto,
+                Quantidade = itemDto.Quantidade,
+                PrecoUnitario = produto.Preco
+            };
+            pedido.Itens.Add(item);
+            total += item.Quantidade * item.PrecoUnitario;
         }
+
+        pedido.Total = total;
+        _context.Pedidos.Add(pedido);
+        await _context.SaveChangesAsync();
+
+        return await GetByIdAsync(pedido.IdPedido);
+    }
+
+    public async Task AtualizarStatusAsync(int id, string status)
+    {
+        var pedido = await _context.Pedidos.FindAsync(id);
+
+        if (pedido == null)
+            throw new ErrorServiceException(
+                $"Pedido #{id} não encontrado",
+                c => c.NotFound(new { mensagem = $"Pedido #{id} não encontrado." }));
+
+        pedido.Status = status;
+        await _context.SaveChangesAsync();
     }
 }

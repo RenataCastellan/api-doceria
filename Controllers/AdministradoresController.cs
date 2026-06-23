@@ -1,4 +1,5 @@
 ﻿using api_doceria.Dtos;
+using api_doceria.Exceptions;
 using api_doceria.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,38 +16,53 @@ public class AdministradoresController : ControllerBase
         _service = service;
     }
 
-    // GET api/administradores
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var admins = await _service.GetAllAsync();
-        return Ok(admins);
+        try
+        {
+            var admins = await _service.GetAllAsync();
+            return Ok(admins);
+        }
+        catch (Exception e)
+        {
+            return Problem(e.Message);
+        }
     }
 
-    // GET api/administradores/5
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var admin = await _service.GetByIdAsync(id);
-        if (admin == null) return NotFound(new { mensagem = "Administrador não encontrado." });
-        return Ok(admin);
+        try
+        {
+            var admin = await _service.GetByIdAsync(id);
+            return Ok(admin);
+        }
+        catch (ErrorServiceException e)
+        {
+            return e.ToActionResult(this);
+        }
+        catch (Exception e)
+        {
+            return Problem(e.Message);
+        }
     }
 
-    // POST api/administradores
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] AdministradorCreateDto dto)
     {
         try
         {
             var admin = await _service.CreateAsync(dto);
-            if (admin == null)
-                return Conflict(new { mensagem = "Login já cadastrado no sistema." });
-
-            return CreatedAtAction(nameof(GetById), new { id = admin.IdAdmin }, admin);
+            return Created("", admin);
         }
-        catch (ArgumentException ex)
+        catch (ErrorServiceException e)
         {
-            return BadRequest(new { mensagem = ex.Message });
+            return e.ToActionResult(this);
+        }
+        catch (Exception e)
+        {
+            return Problem(e.Message);
         }
     }
 }
